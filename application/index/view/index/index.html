@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head lang="zh-cn">
+
+    <title>think-gateway测试页面</title>
+    <meta name="renderer" content="webkit">
+
+    <script src="//cdn.bootcss.com/jquery/3.1.1/jquery.js"></script>
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-default/index.css">
+    <!-- 引入组件库 -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+
+    <style>
+        .avatar {
+            width: 40px;
+            height: 40px;
+        }
+    </style>
+
+</head>
+<body>
+
+<div id="app">
+    <!-- content 行 -->
+    <el-row :gutter="20">
+        <el-col :span="3">
+            <el-menu theme="dark" default-active="1">
+                <el-menu-item index="1">处理中心</el-menu-item>
+                <el-menu-item index="2">聊天室</el-menu-item>
+                <el-menu-item index="3">订单管理</el-menu-item>
+            </el-menu>
+        </el-col>
+
+        <el-col :span="10">
+            <el-row style="height: 78px;"></el-row>
+
+            <el-row>
+                <el-card >
+                    <div slot="header">
+                        <el-popover ref="avatar-info-popover" placement="top" v-model="showAvatarInfoPopover">
+                            <p>资料现在还查看不了哎</p>
+                            <div style="text-align: right; margin: 0">
+                                <el-button size="mini" type="text" @click="showAvatarInfoPopover = false">我知道了</el-button>
+                            </div>
+                        </el-popover>
+                        <el-tooltip content="点击查看资料" placement="top">
+                            <img :src="user.avatar" alt="点击查看资料" class="avatar" v-popover:avatar-info-popover/>
+                        </el-tooltip>
+
+                        <span>{{user.name}}</span>
+                    </div>
+
+                    <el-row id="messageList" style="height: 200px; overflow-y: auto">
+                        <div v-for="message in messages">
+                            <!-- 单条消息 -->
+                            <el-row :gutter="5" type="flex" :justify="message.isSelf ? 'end' : 'start'">
+                                <el-tooltip
+                                        :placement="message.isSelf ? 'left' : 'right'"
+                                        :effect="message.isSelf ? 'dark' : 'light'"
+                                        :content="message.content"
+                                        :visible-arrow="true"
+                                        :manual="true"
+                                        :openDelay="1000"
+                                        :value="message.showMessage"
+                                >
+                                    <img :src="message.user.avatar" alt="点击查看资料" class="avatar"/>
+                                </el-tooltip>
+                            </el-row>
+
+                        </div>
+                    </el-row>
+
+                    <textarea style="margin-top: 20px;"
+                            placeholder="请输入内容"
+                            v-model="messageContent"
+                            @keyup="checkSendMessage"
+                            rows="6"
+                            cols="100"
+                    >
+                    </textarea>
+
+                    <div style="float: right; padding: 16px 0;">
+                        <el-button type="primary" @click="sendMessage">发送(Enter)</el-button>
+                    </div>
+
+                </el-card>
+            </el-row>
+        </el-col>
+        <el-col :span="10">
+
+            {{message}}
+            <div></div>
+            <ul>
+                <li>
+                    <el-input type="text" v-model="wsUrl" placeholder="ws://127.0.0.1:2345"/>
+                    <button @click="createWs">建立WebSocket连接</button>
+                </li>
+                <li>
+                    mesasge:
+                    <input type="text" v-model="message"/>
+                    <button @click="send">发送websocket请求</button>
+                </li>
+                <li>
+                    <button @click="close">关闭WebSocket连接</button>
+                </li>
+            </ul>
+        </el-col>
+    </el-row>
+
+</div>
+
+
+<script type="text/javascript">
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            showAvatarInfoPopover: false,
+            wss: [],
+            ws: null,
+            wsUrl: 'ws://127.0.0.1:2345',
+            message: 'Hello Vue!',
+            server: {
+                host: '127.0.0.1',
+                port: '1238'
+            },
+            user: {
+                avatar: 'http://img.52touxiang.net/uploads/allimg/161231/1I423HE-4.jpg',
+                name: 'xxx'
+            },
+            messageContent: '',
+            messages: [
+                {
+                    user: {
+                        name: 'aaa',
+                        avatar: 'http://up.qqjia.com/z/03/tu4511_38.jpg'
+                    },
+                    content: '在啊?',
+                    isSelf: false,
+                    showMessage: false
+                },
+                {
+                    user: {
+                        avatar: 'http://img.52touxiang.net/uploads/allimg/161231/1I423HE-4.jpg',
+                        name: 'xxx'
+                    },
+                    content: '不在',
+                    isSelf: true,
+                    showMessage: false
+                }
+            ]
+        },
+        methods: {
+            sendMessage: function(){
+                var content = this.messageContent;
+                (content.indexOf('\n') == content.length - 1) && (content = content.substr(0, content.length - 1));
+                if(!content){
+                    this.$message.error('发送消息为空，请重新输入。');
+                }else{
+                    var message = {
+                        user: this.user,
+                        content: content,
+                        isSelf: true,
+                        showMessage: false
+                    };
+                    setTimeout(function(){
+                        message.showMessage = true;
+                    }, 100);
+                    this.messages.push(message);
+                }
+                this.messageContent = '';
+            },
+            checkSendMessage: function(event){
+                if(event.keyCode == 13){
+                    this.sendMessage();
+                }
+            },
+            createWs : function(){
+                console.log('creating');
+                var ws = this.ws = new WebSocket(this.wsUrl);
+                console.log('created');
+
+                ws.onmessage = function(event){
+                    console.log(event.data);
+                    if(event.data == '2'){
+                        ws.send('2');
+                    }
+                };
+                this.wss.push(ws);
+            },
+            send: function(){
+                console.log(this.message);
+                this.ws.send(this.message)
+            },
+            close: function(){
+                console.log('开始关闭连接');
+                this.ws.close();
+                console.log('结束关闭连接');
+            },
+            sendRequest: function(){
+                $.get('/index/index/sendRequest',
+                    {host: this.sendRequest.host, port: this.sendRequest.host},
+                    function(result){
+                    console.log(result);
+                });
+            }
+        },
+        created: function () {
+            var messages = this.messages;
+            setTimeout(function(){
+                for(var index in messages){
+                    messages[index].showMessage = true;
+                }
+            }, 300);
+        },
+        updated: function(){
+            var ele = $('#messageList');
+            ele.scrollTop(Number.MAX_VALUE);
+        }
+    });
+
+
+    /*  // 设置心跳
+     setInterval(function(){
+
+     for(var key in wss){
+     wss[key].send('2');
+     }
+     }, 20000);*/
+
+
+
+</script>
+
+</body>
+</html>
