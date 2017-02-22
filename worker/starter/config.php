@@ -45,7 +45,7 @@ return [
         // business进程数
         'count'                 => 4,
         // 业务服务事件处理
-        'eventHandler'          => 'think\gateway\Events',
+        'eventHandler'          => 'app\worker\utils\EventHandler',
         // 业务超时时间，可用来定位程序卡在哪里
         'processTimeout'        => 30,
         // 业务超时后的回调，可用来记录日志

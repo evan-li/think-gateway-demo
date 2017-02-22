@@ -13,6 +13,8 @@
     <!-- 引入组件库 -->
     <script src="https://unpkg.com/element-ui/lib/index.js"></script>
 
+    <script src="/static/js/websocket-handler.js"></script>
+
     <style>
         .avatar {
             width: 40px;
@@ -25,9 +27,9 @@
 
 <div id="app">
     <!-- content 行 -->
-    <el-row :gutter="20">
+    <el-row :gutter="20" style="width: 99%;">
         <el-col :span="3">
-            <el-menu theme="dark" default-active="1">
+            <el-menu theme="dark" default-active="2">
                 <el-menu-item index="1">处理中心</el-menu-item>
                 <el-menu-item index="2">聊天室</el-menu-item>
                 <el-menu-item index="3">订单管理</el-menu-item>
@@ -56,7 +58,7 @@
                     <el-row id="messageList" style="height: 200px; overflow-y: auto">
                         <div v-for="message in messages">
                             <!-- 单条消息 -->
-                            <el-row :gutter="5" type="flex" :justify="message.isSelf ? 'end' : 'start'">
+                            <el-row type="flex" :justify="message.isSelf ? 'end' : 'start'">
                                 <el-tooltip
                                         :placement="message.isSelf ? 'left' : 'right'"
                                         :effect="message.isSelf ? 'dark' : 'light'"
@@ -95,8 +97,8 @@
             <div></div>
             <ul>
                 <li>
-                    <el-input type="text" v-model="wsUrl" placeholder="ws://127.0.0.1:2345"/>
-                    <button @click="createWs">建立WebSocket连接</button>
+                    <input type="text" v-model="wsUrl" placeholder="ws://127.0.0.1:2345"/>
+                    <button @click="createWsh">建立WebSocket连接</button>
                 </li>
                 <li>
                     mesasge:
@@ -119,8 +121,7 @@
         el: '#app',
         data: {
             showAvatarInfoPopover: false,
-            wss: [],
-            ws: null,
+            wsh: null,
             wsUrl: 'ws://127.0.0.1:2345',
             message: 'Hello Vue!',
             server: {
@@ -129,7 +130,7 @@
             },
             user: {
                 avatar: 'http://img.52touxiang.net/uploads/allimg/161231/1I423HE-4.jpg',
-                name: 'xxx'
+                name: '轻盈的枫'
             },
             messageContent: '',
             messages: [
@@ -145,7 +146,7 @@
                 {
                     user: {
                         avatar: 'http://img.52touxiang.net/uploads/allimg/161231/1I423HE-4.jpg',
-                        name: 'xxx'
+                        name: '轻盈的枫'
                     },
                     content: '不在',
                     isSelf: true,
@@ -160,16 +161,7 @@
                 if(!content){
                     this.$message.error('发送消息为空，请重新输入。');
                 }else{
-                    var message = {
-                        user: this.user,
-                        content: content,
-                        isSelf: true,
-                        showMessage: false
-                    };
-                    setTimeout(function(){
-                        message.showMessage = true;
-                    }, 100);
-                    this.messages.push(message);
+                    this.send(content);
                 }
                 this.messageContent = '';
             },
@@ -178,34 +170,42 @@
                     this.sendMessage();
                 }
             },
-            createWs : function(){
-                console.log('creating');
-                var ws = this.ws = new WebSocket(this.wsUrl);
-                console.log('created');
-
-                ws.onmessage = function(event){
-                    console.log(event.data);
-                    if(event.data == '2'){
-                        ws.send('2');
+            createWsh : function(){
+                var wsh = this.wsh = new WebSocketHandler({
+                    socket: this.wsUrl,
+                    ready: function(result){
+                        app.user.name = wsh.clientId();
                     }
-                };
-                this.wss.push(ws);
+                });
+                wsh.on('message', function(result){
+                    var message = {
+                        user: result.user,
+                        content: result.content,
+                        isSelf: false,
+                        showMessage: false
+                    };
+                    app.messages.push(message);
+                    setTimeout(function(){
+                        message.showMessage = true;
+                    }, 100);
+                });
+
             },
-            send: function(){
-                console.log(this.message);
-                this.ws.send(this.message)
+            send: function(content){
+                this.wsh.send('message', {content: content});
+                var message = {
+                    user: this.user,
+                    content: content,
+                    isSelf: true,
+                    showMessage: false
+                };
+                setTimeout(function(){
+                    message.showMessage = true;
+                }, 100);
+                this.messages.push(message);
             },
             close: function(){
-                console.log('开始关闭连接');
-                this.ws.close();
-                console.log('结束关闭连接');
-            },
-            sendRequest: function(){
-                $.get('/index/index/sendRequest',
-                    {host: this.sendRequest.host, port: this.sendRequest.host},
-                    function(result){
-                    console.log(result);
-                });
+                this.wsh.close();
             }
         },
         created: function () {
@@ -215,6 +215,9 @@
                     messages[index].showMessage = true;
                 }
             }, 300);
+
+            this.createWsh();
+
         },
         updated: function(){
             var ele = $('#messageList');
