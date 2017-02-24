@@ -103,7 +103,7 @@
                 <li>
                     mesasge:
                     <input type="text" v-model="message"/>
-                    <button @click="send">发送websocket请求</button>
+                    <button @click="send(message)">发送websocket请求</button>
                 </li>
                 <li>
                     <button @click="close">关闭WebSocket连接</button>
@@ -171,9 +171,9 @@
                 }
             },
             createWsh : function(){
-                var wsh = this.wsh = new WebSocketHandler({
+                var wsh = this.wsh = new WsHandler({
                     socket: this.wsUrl,
-                    ready: function(result){
+                    ready: function(data){
                         app.user.name = wsh.clientId();
                     }
                 });

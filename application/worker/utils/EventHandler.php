@@ -13,6 +13,7 @@ use think\gateway\Events;
 
 class EventHandler extends Events
 {
+
     /**
      * 当客户端发来消息时触发
      * @param int $client_id 连接id
@@ -24,14 +25,31 @@ class EventHandler extends Events
         if($message == self::$CLIENT_PING_DATA){
             return ;
         }
+
+        $data = json_decode($message, 1);
+
+        $params = $data['params'];
+
+        $type = $data[self::$EVENT_KEY];
         // 不能直接使用self::method()的方式调用, 而要用反射
-        self::processMessage($client_id, $message);
+        $result = self::processMessage($client_id, $type, $params);
+        // todo 根据$result判断是否ok并给客户端返回
+        // 向除了自己的所有人发送
+        Gateway::sendToClient($client_id, json_encode([
+            'id' => $data['id'],
+            'type' => 'ok', // 通知客户端消息发送成功
+            'result' => $result
+        ]));
     }
+
+
     /**
      * @param $client_id
-     * @param $message
+     * @param $type
+     * @param $params array
+     * @return array
      */
-    public static function processMessage($client_id, $message)
+    public static function processMessage($client_id, $type, $params)
     {
         $avatars = [
             'http://img.cnjiayu.net/3211573049-3310678237-21-0.jpg' ,
@@ -50,20 +68,18 @@ class EventHandler extends Events
             'http://www.qqtouxiang.com/d/file/qinglv/2017-02-21/328f36b9c2bbc234d876087d3bafeda1.jpg',
             'http://www.qqtouxiang.com/d/file/qinglv/yinanyinv/2017-02-21/3d59647c663fb59ce786ed5446ffcc9c.jpg',
         ];
-        $data = json_decode($message, 1);
-        $params = $data['params'];
-        $result = [
-            'user' => [
-                'name' => $client_id,
-                'avatar' => $avatars[array_rand($avatars)],
-            ],
-            'content' => $params['content']
-        ];
-        // 向除了自己的所有人发送
+
+        // 向除了自己的所有用户发送消息
         Gateway::sendToAll(json_encode([
-            'id' => $data['id'],
-            'action' => 'message',
-            'result' => $result
+            'type' => 'message',
+            'result' => [
+                'user' => [
+                    'name' => $client_id,
+                    'avatar' => $avatars[array_rand($avatars)],
+                ],
+                'content' => $params['content']
+            ]
         ]), null, $client_id);
+        return [];
     }
 }
