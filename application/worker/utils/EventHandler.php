@@ -34,7 +34,7 @@ class EventHandler extends Events
         // 不能直接使用self::method()的方式调用, 而要用反射
         $result = self::processMessage($client_id, $type, $params);
         // todo 根据$result判断是否ok并给客户端返回
-        // 向除了自己的所有人发送
+        // 给用户发送成功或失败的通知
         Gateway::sendToClient($client_id, json_encode([
             'id' => $data['id'],
             'type' => 'ok', // 通知客户端消息发送成功

@@ -38,7 +38,10 @@ var WsHandler = function(options){
     // 系统变量
     var _self = this; // 当前对象本身
     var ws ; // WebSocket对象
-    var clientId = null;
+    var clientId = null; // 客户端ID
+    // var messageSuccessTypeName = 'ok'; // 消息发送成功的返回消息类型名称
+    // var messageErrorTypeName = 'error'; // 消息发送失败的返回消息类型名称
+    var messageCallbackEvents = {}; // 消息的回调事件, 用于做针对每条消息的回调, 如当此条消息发送成功时的事件
 
     // --------------------------  工具方法  ----------------------------
     var isFunction = function(obj){
@@ -144,6 +147,12 @@ var WsHandler = function(options){
                         clientId = data.client_id;
                         isFunction(options.ready) && options.ready(data);
                     }
+                    // 如果是对客户端消息的响应
+                    if(data.id){
+                        var callback = messageCallbackEvents[data.id];
+                        isFunction(callback) && callback(data);
+                        messageCallbackEvents[data.id] = null;
+                    }
                     _self.fire(type, data.result);
                     break;
             }
@@ -170,13 +179,15 @@ var WsHandler = function(options){
     _self.ready = function (callback){
         options.ready = callback;
     };
-    _self.send = function(type, params){
+    _self.send = function(type, params, callback){
+        var id = uuid(16);
         var data = {
-            id: uuid(8),
+            id: id,
             type: type,
             params: params
         };
         ws.send(JSON.stringify(data));
+        if(isFunction(callback)) messageCallbackEvents[id] = callback;
     };
     _self.close = function(){
         ws && ws.readyState == WebSocket.OPEN && ws.close();

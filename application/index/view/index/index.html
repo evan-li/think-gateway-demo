@@ -21,7 +21,19 @@
             height: 40px;
         }
     </style>
+    <style>
+        .message{
+            /*position: relative;*/
+        }
+        .message img{ float: left;}
+        .message .bubble{
+            float: left;
+            padding: 8px;
+            background-color: #1f2d3d;
+            line-height: 24px;
+        }
 
+    </style>
 </head>
 <body>
 
@@ -59,6 +71,15 @@
                         <div v-for="message in messages">
                             <!-- 单条消息 -->
                             <el-row type="flex" :justify="message.isSelf ? 'end' : 'start'">
+
+                                    <div class="message">
+                                        <img :src="message.user.avatar" alt="点击查看资料" class="avatar"/>
+                                        <div class="bubble left">
+                                            <div class="arrow"></div>
+                                            <span>{{message.content}}</span>
+                                        </div>
+                                    </div>
+
                                 <el-tooltip
                                         :placement="message.isSelf ? 'left' : 'right'"
                                         :effect="message.isSelf ? 'dark' : 'light'"
@@ -75,14 +96,21 @@
                         </div>
                     </el-row>
 
-                    <textarea style="margin-top: 20px;"
+                    <!--<textarea style="margin-top: 20px;"
                             placeholder="请输入内容"
                             v-model="messageContent"
                             @keyup="checkSendMessage"
                             rows="6"
                             cols="100"
                     >
-                    </textarea>
+                    </textarea>-->
+                    <el-input type="textarea"
+                              :autosize="{ minRows: 4, maxRows: 6}"
+                              placeholder="请输入内容"
+                              v-model="messageContent"
+                              @change="checkInputMessage"
+                    >
+                    </el-input>
 
                     <div style="float: right; padding: 16px 0;">
                         <el-button type="primary" @click="sendMessage">发送(Enter)</el-button>
@@ -192,7 +220,14 @@
 
             },
             send: function(content){
-                this.wsh.send('message', {content: content});
+                this.wsh.send('message', {content: content}, function(data){
+                    if(data.type == 'ok'){
+                        app.$notify({
+                            message: '消息发送成功',
+                            type: 'success'
+                        });
+                    }
+                });
                 var message = {
                     user: this.user,
                     content: content,

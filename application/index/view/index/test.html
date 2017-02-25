@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        @import url("//unpkg.com/element-ui/lib/theme-default/index.css");
+    </style>
+
+</head>
+<body>
+<script src="//unpkg.com/vue/dist/vue.js"></script>
+<script src="//unpkg.com/element-ui/lib/index.js"></script>
+<div id="app">
+    <div v-for="m in messageList" >{{m}}</div>
+    <el-input type="textarea"
+              :autosize="{ minRows: 4, maxRows: 6}"
+              placeholder="请输入内容"
+              v-model="messageContent"
+              @change="checkInputMessage"
+    >
+    </el-input>
+</div>
+<script>
+
+    var app = new Vue({
+        el: '#app',
+        data: {
+            messageList: [],
+            messageContent: ''
+        },
+        methods: {
+            checkInputMessage: function(){
+                var content = this.messageContent;
+                if(content.indexOf('\n') == content.length - 1){
+                    this.messageList.push(content);
+                    this.messageContent = '';
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>

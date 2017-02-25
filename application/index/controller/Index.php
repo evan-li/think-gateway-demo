@@ -12,4 +12,9 @@ class Index extends Common
     {
         return view();
     }
+
+    public function test()
+    {
+        return view();
+    }
 }
