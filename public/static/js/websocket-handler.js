@@ -136,7 +136,7 @@ var WsHandler = function(options){
             var data = event.data;
             var code = data[0];
             switch (code){
-                case 2: // 服务端返回的心跳响应
+                case '2': // 服务端返回的心跳响应
                     sendHeartbeat();
                     break;
                 case '{':

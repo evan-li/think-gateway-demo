@@ -11,7 +11,8 @@
     <!-- 引入样式 -->
     <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-default/index.css">
     <!-- 引入组件库 -->
-    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!--<script src="https://unpkg.com/element-ui/lib/index.js"></script>-->
+    <script src="/static/lib/elementui/index.js"></script>
 
     <script src="/static/js/websocket-handler.js"></script>
 
@@ -22,22 +23,211 @@
         }
     </style>
     <style>
-        .message{
-            /*position: relative;*/
+
+        .bubble {
+            height: 50px;
+            margin: 5px 0;
         }
-        .message img{ float: left;}
-        .message .bubble{
-            float: left;
+        .bubble .avatar {
+            margin: 5px;
+            width: 40px;
+            height: 40px;
+            border-radius:5px;
+        }
+        .bubble .message {
+            margin: 20px 10px 0 10px;
+            font-size: 14px;
+        }
+        .bubble .message .arrow {
+            margin: 8px 0;
+            width:0;
+            height:0;
+            border:4px solid transparent;
+        }
+        .bubble .message span {
+            background-color: #cccccc;
             padding: 8px;
-            background-color: #1f2d3d;
-            line-height: 24px;
+            border-radius: 4px;
+            float: right;
         }
+
+        .bubble_left .avatar, .bubble_left .message, .bubble_left .message .arrow, .bubble_left .message span {
+            float: left;
+        }
+        .bubble_left .message .arrow {
+            border-left: 0;
+            border-right: 4px solid #cccccc;
+        }
+
+
+        .bubble_right .avatar, .bubble_right .message, .bubble_right .message .arrow, .bubble_right .message span {
+            float: right;
+        }
+        .bubble_right .message span {
+            background-color: #1f2d3d;
+            color: #cccccc;
+            border-color: #1f2d3d;
+        }
+        .bubble_right .message .arrow {
+            border-right: 0;
+            border-left: 4px solid #1f2d3d;
+        }
+
 
     </style>
 </head>
 <body>
 
+
+<template id="chat-bubble">
+    <div class="bubble" :class="isSelf ? 'bubble_right' : 'bubble_left'">
+        <img :src="avatar" alt="点击查看资料" class="avatar"/>
+        <div class="name" v-if="showName">{{name}}</div>
+        <div class="message" :class="{dark: isSelf}">
+            <div class="arrow"></div>
+            <span>{{content}}</span>
+        </div>
+    </div>
+</template>
+
+<script>
+    Vue.component('chat-bubble',  {
+        template: '#chat-bubble',
+        props: {
+            isSelf: {type: Boolean, default: false},
+            avatar: {type: String, required: true},
+            name: {type: String, default: ''},
+            content: {type: String, required: true},
+            showName: {type: Boolean, default: true}
+        }
+    });
+
+</script>
+
+<style>
+    .chat-header img {
+        height: 50px;
+        width: 50px;
+    }
+</style>
+<template id="chat-header">
+    <div class="chat-header">
+        <el-popover ref="avatar-info-popover" placement="top" v-model="showAvatarInfoPopover">
+            <p>资料现在还查看不了哎</p>
+            <div style="text-align: right; margin: 0">
+                <el-button size="mini" type="text" @click="showAvatarInfoPopover = false">我知道了
+                </el-button>
+            </div>
+        </el-popover>
+        <el-tooltip content="点击查看资料" placement="top">
+            <img :src="user.avatar" alt="点击查看资料" class="avatar" v-popover:avatar-info-popover/>
+        </el-tooltip>
+
+        <span>{{user.name}}</span>
+    </div>
+</template>
+<script>
+    Vue.component('chat-header', {
+        template: '#chat-header',
+        props: {
+            user: { type: Object, required: true }
+        },
+        data: function(){
+            return {
+                showAvatarInfoPopover: false
+            }
+        }
+    });
+</script>
+
+
+
+<style>
+    .bubble-list {
+        height: 400px;
+        overflow: hidden;
+        overflow-y: auto;
+        margin-bottom: 10px;
+    }
+</style>
+<template id="chat-window">
+    <el-card class="chat-window">
+        <chat-header :user="user" slot="header"></chat-header>
+        <div class="bubble-list" style="">
+            <chat-bubble v-for="message in messages"
+                         :avatar="message.user.avatar"
+                         :is-self="message.isSelf"
+                         :content="message.content"
+            ></chat-bubble>
+
+        </div>
+        <div class="chat-form">
+            <el-input type="textarea"
+                      :autofocus="true"
+                      :autosize="{ minRows: 4, maxRows: 6}"
+                      placeholder="请输入内容"
+                      v-model="messageContent"
+                      v-on:keyup.enter.native="send"
+            >
+            </el-input>
+            <div style="float: right; padding: 16px 0;">
+                <el-button type="primary" v-on:click="send">发送(Enter)</el-button>
+            </div>
+        </div>
+    </el-card>
+</template>
+
+<script>
+    String.prototype.trim=function(){
+        return this.replace(/(^\s*)|(\s*$)/g, "");
+    };
+    String.prototype.ltrim=function(){
+        return this.replace(/(^\s*)/g,"");
+    };
+    String.prototype.rtrim=function(){
+        return this.replace(/(\s*$)/g,"");
+    };
+    Vue.component('chat-window', {
+        template: '#chat-window',
+        props: {
+            messages: { type: Array, required: true },
+            user: { type: Object, required: true }
+        },
+        data: function(){
+            return {
+                messageChange: false,
+                messageContent: ''
+            }
+        },
+        methods: {
+            send: function(){
+                this.messageContent = this.messageContent.trim();
+                if(this.messageContent.length > 0){
+                    this.$emit('send', this.messageContent);
+                    this.messageContent = '';
+                }else{
+                    this.$message({message: '发送消息内容不能为空!', type: 'error'});
+                }
+            }
+        },
+        watch: {
+            messages : function(){
+                this.messageChange = true;
+            }
+        },
+        updated: function(){
+            if(this.messageChange){
+                this.$el.getElementsByClassName('bubble-list')[0].scrollTop = this.messages.length * 55;
+                this.messageChange = false;
+            }
+        }
+    });
+</script>
+
+
+
 <div id="app">
+
     <!-- content 行 -->
     <el-row :gutter="20" style="width: 99%;">
         <el-col :span="3">
@@ -48,95 +238,12 @@
             </el-menu>
         </el-col>
 
-        <el-col :span="10">
-            <el-row style="height: 78px;"></el-row>
+        <el-col :xs="20" :sm="19" :md="17" :lg="12">
 
-            <el-row>
-                <el-card >
-                    <div slot="header">
-                        <el-popover ref="avatar-info-popover" placement="top" v-model="showAvatarInfoPopover">
-                            <p>资料现在还查看不了哎</p>
-                            <div style="text-align: right; margin: 0">
-                                <el-button size="mini" type="text" @click="showAvatarInfoPopover = false">我知道了</el-button>
-                            </div>
-                        </el-popover>
-                        <el-tooltip content="点击查看资料" placement="top">
-                            <img :src="user.avatar" alt="点击查看资料" class="avatar" v-popover:avatar-info-popover/>
-                        </el-tooltip>
-
-                        <span>{{user.name}}</span>
-                    </div>
-
-                    <el-row id="messageList" style="height: 200px; overflow-y: auto">
-                        <div v-for="message in messages">
-                            <!-- 单条消息 -->
-                            <el-row type="flex" :justify="message.isSelf ? 'end' : 'start'">
-
-                                    <div class="message">
-                                        <img :src="message.user.avatar" alt="点击查看资料" class="avatar"/>
-                                        <div class="bubble left">
-                                            <div class="arrow"></div>
-                                            <span>{{message.content}}</span>
-                                        </div>
-                                    </div>
-
-                                <el-tooltip
-                                        :placement="message.isSelf ? 'left' : 'right'"
-                                        :effect="message.isSelf ? 'dark' : 'light'"
-                                        :content="message.content"
-                                        :visible-arrow="true"
-                                        :manual="true"
-                                        :openDelay="1000"
-                                        :value="message.showMessage"
-                                >
-                                    <img :src="message.user.avatar" alt="点击查看资料" class="avatar"/>
-                                </el-tooltip>
-                            </el-row>
-
-                        </div>
-                    </el-row>
-
-                    <!--<textarea style="margin-top: 20px;"
-                            placeholder="请输入内容"
-                            v-model="messageContent"
-                            @keyup="checkSendMessage"
-                            rows="6"
-                            cols="100"
-                    >
-                    </textarea>-->
-                    <el-input type="textarea"
-                              :autosize="{ minRows: 4, maxRows: 6}"
-                              placeholder="请输入内容"
-                              v-model="messageContent"
-                              @change="checkInputMessage"
-                    >
-                    </el-input>
-
-                    <div style="float: right; padding: 16px 0;">
-                        <el-button type="primary" @click="sendMessage">发送(Enter)</el-button>
-                    </div>
-
-                </el-card>
-            </el-row>
-        </el-col>
-        <el-col :span="10">
-
-            {{message}}
-            <div></div>
-            <ul>
-                <li>
-                    <input type="text" v-model="wsUrl" placeholder="ws://127.0.0.1:2345"/>
-                    <button @click="createWsh">建立WebSocket连接</button>
-                </li>
-                <li>
-                    mesasge:
-                    <input type="text" v-model="message"/>
-                    <button @click="send(message)">发送websocket请求</button>
-                </li>
-                <li>
-                    <button @click="close">关闭WebSocket连接</button>
-                </li>
-            </ul>
+            <chat-window style="margin-top: 78px;" :messages="messages"
+                         :user="user"
+                         @send="sendMessage"
+            ></chat-window>
         </el-col>
     </el-row>
 
@@ -150,7 +257,7 @@
         data: {
             showAvatarInfoPopover: false,
             wsh: null,
-            wsUrl: 'ws://127.0.0.1:2345',
+            wsUrl: 'ws://tp5.com:2345',
             message: 'Hello Vue!',
             server: {
                 host: '127.0.0.1',
@@ -161,51 +268,35 @@
                 name: '轻盈的枫'
             },
             messageContent: '',
-            messages: [
-                {
-                    user: {
-                        name: 'aaa',
-                        avatar: 'http://up.qqjia.com/z/03/tu4511_38.jpg'
-                    },
-                    content: '在啊?',
-                    isSelf: false,
-                    showMessage: false
-                },
-                {
-                    user: {
-                        avatar: 'http://img.52touxiang.net/uploads/allimg/161231/1I423HE-4.jpg',
-                        name: '轻盈的枫'
-                    },
-                    content: '不在',
-                    isSelf: true,
-                    showMessage: false
-                }
-            ]
+            messages: []
         },
         methods: {
-            sendMessage: function(){
-                var content = this.messageContent;
-                (content.indexOf('\n') == content.length - 1) && (content = content.substr(0, content.length - 1));
-                if(!content){
-                    this.$message.error('发送消息为空，请重新输入。');
-                }else{
-                    this.send(content);
+            sendMessage: function (content) {
+                if(content.length > 0){
+                    this.wsh.send('message', {content: content}, function (data) {
+                        if (data.type == 'ok') {
+                            app.$notify({
+                                message: '消息发送成功',
+                                type: 'success'
+                            });
+                        }
+                    });
+                    var message = {
+                        user: this.user,
+                        content: content,
+                        isSelf: true
+                    };
+                    this.messages.push(message);
                 }
-                this.messageContent = '';
             },
-            checkSendMessage: function(event){
-                if(event.keyCode == 13){
-                    this.sendMessage();
-                }
-            },
-            createWsh : function(){
+            createWsh: function () {
                 var wsh = this.wsh = new WsHandler({
                     socket: this.wsUrl,
-                    ready: function(data){
+                    ready: function (data) {
                         app.user.name = wsh.clientId();
                     }
                 });
-                wsh.on('message', function(result){
+                wsh.on('message', function (result) {
                     var message = {
                         user: result.user,
                         content: result.content,
@@ -213,61 +304,14 @@
                         showMessage: false
                     };
                     app.messages.push(message);
-                    setTimeout(function(){
-                        message.showMessage = true;
-                    }, 100);
                 });
 
-            },
-            send: function(content){
-                this.wsh.send('message', {content: content}, function(data){
-                    if(data.type == 'ok'){
-                        app.$notify({
-                            message: '消息发送成功',
-                            type: 'success'
-                        });
-                    }
-                });
-                var message = {
-                    user: this.user,
-                    content: content,
-                    isSelf: true,
-                    showMessage: false
-                };
-                setTimeout(function(){
-                    message.showMessage = true;
-                }, 100);
-                this.messages.push(message);
-            },
-            close: function(){
-                this.wsh.close();
             }
         },
         created: function () {
-            var messages = this.messages;
-            setTimeout(function(){
-                for(var index in messages){
-                    messages[index].showMessage = true;
-                }
-            }, 300);
-
             this.createWsh();
-
-        },
-        updated: function(){
-            var ele = $('#messageList');
-            ele.scrollTop(Number.MAX_VALUE);
         }
     });
-
-
-    /*  // 设置心跳
-     setInterval(function(){
-
-     for(var key in wss){
-     wss[key].send('2');
-     }
-     }, 20000);*/
 
 
 
